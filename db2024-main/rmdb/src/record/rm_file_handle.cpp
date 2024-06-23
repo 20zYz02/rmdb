@@ -124,7 +124,7 @@ RmPageHandle RmFileHandle::fetch_page_handle(int page_no) const {
     // 使用缓冲池获取指定页面，并生成page_handle返回给上层
     // if page_no is invalid, throw PageNotExistError exception
     if (page_no < 0 || page_no >= file_hdr_.num_pages) {
-        throw PageNotExistError(page_no);
+        throw PageNotExistError("",page_no);
     }
     Page* page = buffer_pool_manager_->fetch_page({fd_, page_no});
     return RmPageHandle(&file_hdr_, page);
@@ -139,7 +139,10 @@ RmPageHandle RmFileHandle::create_new_page_handle() {
     // 1.使用缓冲池来创建一个新page
     // 2.更新page handle中的相关信息
     // 3.更新file_hdr_
-    Page* new_page = buffer_pool_manager_->new_page({fd_, file_hdr_.num_pages});
+    PageId pid;
+    pid.fd = fd_;
+    pid.page_no = file_hdr_.num_pages;
+    Page* new_page = buffer_pool_manager_->new_page(&pid);
     RmPageHandle page_handle(&file_hdr_, new_page);
 
     // 初始化页面头信息
