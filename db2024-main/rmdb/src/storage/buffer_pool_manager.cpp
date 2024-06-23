@@ -176,13 +176,22 @@ Page* BufferPoolManager::new_page(PageId* page_id) {
     if (!find_victim_page(&frame_id)) {
         return nullptr;
     }
-
-    Page* new_page = &pages_[frame_id];
-    page_id->page_no = disk_manager_->allocate_page(page_id->fd);
-    replacer_->pin(frame_id);
-    new_page->pin_count_ = 1;
-
-   return new_page;
+    Page* cur_page = &pages_[frame_id];
+    if(cur_page->id_.page_no==INVALID_PAGE_ID){
+        page_id->page_no = disk_manager_->allocate_page(page_id->fd);
+        page_table_[*page_id] = frame_id;
+        replacer_->pin(frame_id);
+        cur_page->pin_count_ = 1;
+    }
+    if (cur_page->is_dirty_) {
+        disk_manager_->write_page(cur_page->id_.fd, cur_page->id_.page_no,cur_page->data_,PAGE_SIZE);
+        cur_page->is_dirty_ = false;
+    }
+    page_table_.erase(cur_page->id_);
+    page_table_[*page_id] = frame_id;
+    cur_page->reset_memory();
+    cur_page->id_ = *page_id;
+    return cur_page;
 }
 
 /**
@@ -197,7 +206,7 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     
     //std::scoped_lock lock(latch_);
     if (page_table_.find(page_id) == page_table_.end()) {
-        return true;
+        return false;
     }
 
     frame_id_t frame_id = page_table_[page_id];
