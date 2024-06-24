@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": false,
-      "cwd": "/home/ydt/Desktop/db2024/rmdb/rmdb/src",
-      "program": "/home/ydt/Desktop/db2024/rmdb/rmdb/src/build/Debug/outDebug",
+      "cwd": "/home/ydt/Desktop/db2024/rmdb/rmdb/src/storage",
+      "program": "/home/ydt/Desktop/db2024/rmdb/rmdb/src/storage/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
