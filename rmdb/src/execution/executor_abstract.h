@@ -55,4 +55,9 @@ class AbstractExecutor {
         return pos;
     }
 
+    virtual std::string get_tab_name() { 
+        return "";
+    }
+
+
 };
