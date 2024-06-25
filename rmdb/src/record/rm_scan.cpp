@@ -19,18 +19,29 @@ RmScan::RmScan(const RmFileHandle *file_handle) : file_handle_(file_handle) {
     // Todo:
     // 初始化file_handle和rid（指向第一个存放了记录的位置）
     // 初始化rid_，找到第一个存放了记录的位置
-    int page_no = file_handle_->get_file_hdr().first_free_page_no;
-    RmPageHandle page_handle = file_handle_->fetch_page_handle(page_no);
+// 获取文件头信息
+auto file_header = file_handle_->file_hdr_;
 
-    // 查找第一个非空闲的记录位置
-    int slot_no = Bitmap::first_bit(true, page_handle.bitmap, file_handle_->get_file_hdr().num_records_per_page);
+// 初始化页号和插槽号为无效值
+page_id_t page_no = -1;
+int slot_no = -1;
 
-    if (slot_no != file_handle_->get_file_hdr().num_records_per_page) {
-        rid_ = Rid{ page_no, slot_no };
-    } else {
-        // 如果找不到非空闲的记录位置，则初始化为无效的记录号
-        rid_ = Rid{ -1, -1 };
+// 循环遍历文件的每一页，寻找第一个非空闲插槽
+for (page_no = 1; page_no < file_header.num_pages; ++page_no) {
+    auto page_handle = file_handle->fetch_page_handle(page_no); // 获取当前页的页面句柄
+    int first_free_slot = Bitmap::first_bit(true, page_handle.bitmap, file_header.num_records_per_page);// 查找页面中第一个空闲插槽的位置
+    file_handle_->buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), false);
+    // 如果找到了空闲插槽，则记录页号和插槽号，并结束循环
+    if (first_free_slot < file_header.num_records_per_page) {
+        slot_no = first_free_slot;
+        break;
     }
+}
+if (slot_no == -1) {
+    page_no = -1;
+}
+rid_ = Rid{page_no, slot_no};
+
 }
 
 /**
@@ -39,24 +50,21 @@ RmScan::RmScan(const RmFileHandle *file_handle) : file_handle_(file_handle) {
 void RmScan::next() {
     // Todo:
     // 找到文件中下一个存放了记录的非空闲位置，用rid_来指向这个位置
-    if (rid_.page_no == -1 || rid_.slot_no == -1) {
-        return; // 如果当前位置已经无效，则直接返回
+auto hdr = file_handle_->file_hdr_;
+int num_slot = hdr.num_records_per_page;
+
+for (int page_no = rid_.page_no; page_no < hdr.num_pages; ++page_no) {
+    auto page_handle = file_handle_->fetch_page_handle(page_no);
+    int slot_no = Bitmap::next_bit(true, page_handle.bitmap, num_slot, rid_.slot_no); // 找到此page内第一个记录
+    file_handle_->buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), false);
+    if (slot_no < num_slot) {
+        rid_ = {page_no, slot_no};
+        return;
     }
+    rid_.slot_no = -1;
+}
+rid_ = {-1, -1};
 
-    int page_no = rid_.page_no;
-    int slot_no = rid_.slot_no;
-
-    RmPageHandle page_handle = file_handle_->fetch_page_handle(page_no);
-
-    // 查找下一个非空闲的记录位置
-    slot_no = Bitmap::next_bit(true, page_handle.bitmap, file_handle_->get_file_hdr().num_records_per_page, slot_no);
-
-    if (slot_no != file_handle_->get_file_hdr().num_records_per_page) {
-        rid_ = Rid{ page_no, slot_no };
-    } else {
-        // 如果找不到下一个非空闲的记录位置，则将 rid_ 设为无效
-        rid_ = Rid{ -1, -1 };
-    }
 }
 
 /**
@@ -64,7 +72,7 @@ void RmScan::next() {
  */
 bool RmScan::is_end() const {
     // Todo: 修改返回值
-    return (rid_.page_no == -1 || rid_.slot_no == -1);
+    return rid_.page_no == -1 && rid_.slot_no == -1;
 }
 
 /**

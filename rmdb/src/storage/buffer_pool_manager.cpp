@@ -129,7 +129,6 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     if (is_dirty) {
         page->is_dirty_ = true;
     }
-    else page->is_dirty_ = false;
 
     return true;
 }
@@ -199,7 +198,7 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     //std::scoped_lock lock{latch_};
     std::scoped_lock lock{latch_};
     if (page_table_.find(page_id) == page_table_.end()) {
-        return false;
+        return true;
     }
 
     frame_id_t frame_id = page_table_[page_id];

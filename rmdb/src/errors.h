@@ -143,6 +143,11 @@ class StringOverflowError : public RMDBError {
     StringOverflowError() : RMDBError("String is too long") {}
 };
 
+class TypeNotExistsError : public RMDBError {
+   public:
+    TypeNotExistsError() : RMDBError("Type not exists") {}
+};
+
 class IncompatibleTypeError : public RMDBError {
    public:
     IncompatibleTypeError(const std::string &lhs, const std::string &rhs)

@@ -23,7 +23,11 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         // 处理表名
         query->tables = std::move(x->tabs);
         /** TODO: 检查表是否存在 */
-
+        for (auto &tab_name : query->tables){
+            if(!sm_manager_->db_.is_table(tab_name)){
+                throw TableNotFoundError(tab_name);
+            }    
+        }
         // 处理target list，再target list中添加上表名，例如 a.id
         for (auto &sv_sel_col : x->cols) {
             TabCol sel_col = {.tab_name = sv_sel_col->tab_name, .col_name = sv_sel_col->col_name};
@@ -49,6 +53,29 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         check_clause(query->tables, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
         /** TODO: */
+        // 表名
+        query->tables.push_back(x->tab_name);
+        /** TODO: 检查表是否存在 */
+        for (auto &tab_name : query->tables){
+            if(!sm_manager_->db_.is_table(tab_name)){
+                throw TableNotFoundError(tab_name);
+            }    
+        }
+        // 处理set clause
+        for (auto &set_clause : x->set_clauses) {
+            auto sv_clause = set_clause.get();
+            SetClause sel_set_clause;
+
+            sel_set_clause.lhs = TabCol{.tab_name = x->tab_name, .col_name = sv_clause->col_name};
+
+            auto value = convert_sv_value(sv_clause->val);
+            ColMeta col = *(sm_manager_->db_.get_table(x->tab_name).get_col(sel_set_clause.lhs.col_name));
+            sel_set_clause.rhs = value;
+            query->set_clauses.push_back(sel_set_clause);
+        }
+        //处理where条件
+        get_clause(x->conds, query->conds);
+        check_clause({x->tab_name}, query->conds);
 
     } else if (auto x = std::dynamic_pointer_cast<ast::DeleteStmt>(parse)) {
         //处理where条件
@@ -85,7 +112,15 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
         target.tab_name = tab_name;
     } else {
         /** TODO: Make sure target column exists */
-        
+        bool flag = false;
+        for(auto &col: all_cols){
+            if(col.name == target.col_name&&col.tab_name == target.tab_name){
+                flag = true;
+            }
+        }
+        if(!flag){
+            throw ColumnNotFoundError(target.col_name);
+        }
     }
     return target;
 }

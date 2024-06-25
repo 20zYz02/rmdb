@@ -21,6 +21,7 @@ class AbstractExecutor {
 
     Context *context_;
 
+
     virtual ~AbstractExecutor() = default;
 
     virtual size_t tupleLen() const { return 0; };
@@ -53,4 +54,5 @@ class AbstractExecutor {
         }
         return pos;
     }
+
 };
